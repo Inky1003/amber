@@ -27,6 +27,20 @@
 #include "global/config.h"
 #include "global/debug.h"
 
+// Returns the timestamp of the keyframe a BACKWARD seek to target_pts would land on,
+// or AV_NOPTS_VALUE if the container index can't tell.
+static int64_t seek_landing_timestamp(AVFormatContext* formatCtx, int stream_index, int64_t target_pts) {
+  AVStream* st = formatCtx->streams[stream_index];
+  int entry = av_index_search_timestamp(st, target_pts, AVSEEK_FLAG_BACKWARD);
+  if (entry < 0) return AV_NOPTS_VALUE;
+#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(58, 78, 100)
+  const AVIndexEntry* e = avformat_index_get_entry(st, entry);
+  return (e != nullptr) ? e->timestamp : AV_NOPTS_VALUE;
+#else
+  return st->index_entries[entry].timestamp;
+#endif
+}
+
 void Cacher::CacheVideoWorker() {
   // Skip video caching if filter graph failed to initialize
   if (filter_graph == nullptr) {
@@ -103,7 +117,22 @@ void Cacher::CacheVideoWorker() {
     // check if the frame is within this queue or if we'll have to seek elsewhere to get it
     // (we check for one second of time after latest_pts, because if it's within that range it'll likely be faster to
     // play up to that frame than seek to it)
-    if (target_pts < earliest_pts || target_pts > latest_pts + second_pts || queue_.size() == 0) {
+    bool need_seek = (target_pts < earliest_pts || target_pts > latest_pts + second_pts || queue_.size() == 0);
+
+    // Seek-storm guard (#57): when decode falls behind during forward playback, a BACKWARD
+    // seek lands on the keyframe preceding the target. On long-GOP media that keyframe is
+    // often one we already decoded past — the seek would throw the queue away and re-decode
+    // the same GOP, repeatedly, without ever catching up. If the container index tells us
+    // the landing keyframe is at or before our latest decoded frame, decoding forward is
+    // strictly cheaper: keep going instead.
+    if (need_seek && queue_.size() > 0 && target_pts > latest_pts) {
+      int64_t landing = seek_landing_timestamp(formatCtx, clip->media_stream_index(), target_pts);
+      if (landing != AV_NOPTS_VALUE && landing <= latest_pts) {
+        need_seek = false;
+      }
+    }
+
+    if (need_seek) {
       // we need to seek to retrieve this frame
 
       int retrieve_code;
