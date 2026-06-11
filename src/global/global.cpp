@@ -426,6 +426,25 @@ void OliveGlobal::go_back_sequence()
   panel_timeline->setFocus();
 }
 
+void OliveGlobal::go_to_sequence_level(int index)
+{
+  // Equivalent to pressing Backspace (size - index) times: the sequence stored
+  // at history index becomes active and everything above it is discarded.
+  // Bounds-guarded because the history may have changed between breadcrumb
+  // render and click.
+  if (index < 0 || index >= sequence_history_.size()) return;
+  SequencePtr target = sequence_history_.at(index);
+  sequence_history_.resize(index);
+
+  panel_graph_editor->set_row(nullptr);
+  panel_effect_controls->Clear(true);
+
+  amber::ActiveSequence = target;
+  panel_sequence_viewer->set_main_sequence();
+  panel_timeline->update_sequence();
+  panel_timeline->setFocus();
+}
+
 bool OliveGlobal::can_go_back() const
 {
   return !sequence_history_.isEmpty();

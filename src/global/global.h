@@ -335,6 +335,8 @@ public slots:
 
     void go_back_sequence();
 
+    void go_to_sequence_level(int index);
+
     bool can_go_back() const;
 
     const QVector<SequencePtr>& sequence_history() const;
