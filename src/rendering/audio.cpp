@@ -294,9 +294,8 @@ int AudioSenderThread::send_audio_to_output(qint64 offset, int max) {
       averages[counter] = qMax((double(qAbs(sample)) / 32768.0), averages[counter]);
       counter = (counter + 1) % channels;
     }
-    for (int i = 0; i < channels; i++) {
-      averages[i] = log_volume(1.0 - (averages[i]));
-    }
+    // Send raw linear peaks (0..1) — AudioMonitor does the dB display mapping.
+    // Same convention as the RecordingTap path so both feeds read identically.
     if (!recording) amber::app_ctx->setAudioMonitorValues(averages);
   }
 
