@@ -182,7 +182,9 @@ void Cacher::CacheVideoWorker() {
       minimum_ts = qCeil(previous_queue_size);
     } else {
       // get the minimum frame timestamp that can be added to the queue
-      minimum_ts = qRound(target_pts - second_pts * previous_queue_size);
+      // (qRound64: stream timestamps overflow qRound's int return past 2^31,
+      // ~6.6 hours into a file with a 90kHz timebase)
+      minimum_ts = qRound64(target_pts - second_pts * previous_queue_size);
     }
 
     // Determine "upcoming" queue statistics
@@ -190,7 +192,7 @@ void Cacher::CacheVideoWorker() {
       maximum_ts = qCeil(upcoming_queue_size);
     } else {
       // get the maximum frame timestamp that can be added to the queue
-      maximum_ts = qRound(target_pts + second_pts * upcoming_queue_size);
+      maximum_ts = qRound64(target_pts + second_pts * upcoming_queue_size);
     }
 
     // if we already have the maximum number of upcoming frames, don't bother running the retrieving any frames at all
