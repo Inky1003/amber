@@ -302,6 +302,18 @@ void Cacher::CacheVideoWorker() {
               }
               queue_.unlock();
 
+            } else {
+
+              // FRAME_QUEUE_TYPE_SECONDS: frames older than the window were only discarded
+              // on arrival (above), never evicted once queued — during continuous playback
+              // the queue grew unbounded. Evict them here, keeping at least one frame and
+              // never the retrieved frame.
+              queue_.lock();
+              while (queue_.size() > 1 && queue_.first()->pts < minimum_ts && queue_.first() != retrieved_frame) {
+                queue_.removeFirst();
+              }
+              queue_.unlock();
+
             }
 
             // check if the queue is full according to amber::CurrentConfig
