@@ -346,6 +346,9 @@ void Cacher::CacheVideoWorker() {
             break;
           }
 
+          // Not stored anywhere — free it, the decode loop allocates a fresh frame on the next pass
+          av_frame_free(&decoded_frame);
+
         }
       } while (!interrupt_);
 
