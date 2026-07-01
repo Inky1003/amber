@@ -21,7 +21,7 @@ makedepends=(
 # without a Vulkan ICD the backend falls back to OpenGL at runtime, so this
 # is effectively free for old GPUs. Matches the AppImage build.
 conflicts=('olive')
-source=("git+https://github.com/baptisterajaut/amber.git#tag=v1.7.5")
+source=("git+https://github.com/baptisterajaut/amber.git#tag=v$pkgver")
 sha256sums=('SKIP')
 
 build() {
